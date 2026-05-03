@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { type User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { type TravelVlog } from '../types';
@@ -10,7 +9,6 @@ interface TravelsProps {
 }
 
 function Travels({ user }: TravelsProps) {
-  const navigate = useNavigate();
   const [travels, setTravels] = useState<TravelVlog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +128,7 @@ function Travels({ user }: TravelsProps) {
           <h1>US States Travel Explorer</h1>
         </div>
         <div className="empty-state">
-          <p>Please <Link to="/signin">sign in</Link> to view your travel stories.</p>
+          <p>Please sign in to view your travel stories.</p>
         </div>
       </div>
     );
