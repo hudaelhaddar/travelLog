@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { type User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { type TravelVlog } from '../types';
@@ -9,6 +10,7 @@ interface TravelsProps {
 }
 
 function Travels({ user }: TravelsProps) {
+  const navigate = useNavigate();
   const [travels, setTravels] = useState<TravelVlog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,31 +29,30 @@ function Travels({ user }: TravelsProps) {
     'Wisconsin', 'Wyoming'
   ];
 
-  // Fetch ONLY the authenticated user's travel vlogs
+  // Fetch travel vlogs based on user authentication status
   useEffect(() => {
-    if (user) {
-      fetchTravels();
-    } else {
-      setLoading(false);
-      setTravels([]);
-    }
+    fetchTravels();
   }, [user]); // Re-fetch when user changes
 
   async function fetchTravels() {
     try {
       setLoading(true);
-      // Filter by user_id to only get current user's travels
-      const { data, error } = await supabase
-        .from('travel_vlog')
-        .select('*')
-        .eq('user_id', user?.id)  // KEY CHANGE: Filter by user_id
-        .order('date_started', { ascending: false });
+      
+      let query = supabase.from('travel_vlog').select('*');
+      
+      if (user) {
+        // Authenticated users see ONLY their own travels
+        query = query.eq('user_id', user.id);
+      }
+      // Anonymous users see ALL travels (no filter)
+      
+      const { data, error } = await query.order('date_started', { ascending: false });
 
       if (error) throw error;
       setTravels(data || []);
     } catch (err) {
       console.error('Error fetching travels:', err);
-      setError('Failed to load your travel vlogs. Please try again.');
+      setError('Failed to load travel vlogs. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,19 +62,24 @@ function Travels({ user }: TravelsProps) {
     try {
       setError(null);
       
+      // Redirect if not authenticated
+      if (!user) {
+        navigate('/signin');
+        return;
+      }
+      
       if (editingTravel) {
-        // When updating, ensure user owns this record
         const { error } = await supabase
           .from('travel_vlog')
           .update(travelData)
           .eq('id', editingTravel.id)
-          .eq('user_id', user?.id); // Add user_id check for security
+          .eq('user_id', user.id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('travel_vlog')
-          .insert([{ ...travelData, user_id: user?.id }]);
+          .insert([{ ...travelData, user_id: user.id }]);
 
         if (error) throw error;
       }
@@ -89,12 +95,17 @@ function Travels({ user }: TravelsProps) {
 
   async function handleDelete(id: number) {
     try {
-      // Only delete if user owns this record
+      // Redirect if not authenticated
+      if (!user) {
+        navigate('/signin');
+        return;
+      }
+      
       const { error } = await supabase
         .from('travel_vlog')
         .delete()
         .eq('id', id)
-        .eq('user_id', user?.id); // Add user_id check for security
+        .eq('user_id', user.id);
 
       if (error) throw error;
       await fetchTravels();
@@ -117,28 +128,20 @@ function Travels({ user }: TravelsProps) {
     return <span className="stars">{'⭐'.repeat(rating)}{'☆'.repeat(5 - rating)}</span>;
   }
 
-  // Get unique states that the current user has visited
+  // Get unique states that have been visited (based on fetched travels)
   const visitedStates = [...new Set(travels.map(travel => travel.state_name))];
 
-  // If not logged in, show message
-  if (!user) {
-    return (
-      <div>
-        <div className="products-header">
-          <h1>US States Travel Explorer</h1>
-        </div>
-        <div className="empty-state">
-          <p>Please sign in to view your travel stories.</p>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
-    return <div className="loading">Loading your travel adventures...</div>;
+    return <div className="loading">Loading travel adventures...</div>;
   }
 
   if (showForm || editingTravel) {
+    // Redirect to sign in if not authenticated
+    if (!user) {
+      navigate('/signin');
+      return null;
+    }
+    
     return (
       <TravelForm
         travel={editingTravel}
@@ -155,15 +158,17 @@ function Travels({ user }: TravelsProps) {
   return (
     <div>
       <div className="products-header">
-        <h1>My US States Travel Explorer</h1>
-        <button onClick={() => setShowForm(true)} className="btn btn-primary">
-          + Add Your Travel Story
-        </button>
+        <h1>US States Travel Explorer</h1>
+        {user && (
+          <button onClick={() => setShowForm(true)} className="btn btn-primary">
+            + Add Your Travel Story
+          </button>
+        )}
       </div>
 
       {error && <p className="error-message">{error}</p>}
 
-      {/* Simple 50 States List - Shows only user's visited states */}
+      {/* 50 States List - Shows visited states from fetched travels */}
       <div style={{ 
         background: '#fff', 
         padding: '20px', 
@@ -172,7 +177,7 @@ function Travels({ user }: TravelsProps) {
         border: '1px solid #e2e8f0'
       }}>
         <h2 style={{ fontSize: '20px', marginBottom: '16px', color: '#1e293b' }}>
-          Your Visited States
+          The 50 States
           <span style={{ fontSize: '14px', color: '#64748b', marginLeft: '12px' }}>
             {visitedStates.length} / 50 states visited
           </span>
@@ -203,21 +208,32 @@ function Travels({ user }: TravelsProps) {
           })}
         </div>
         <p style={{ marginTop: '16px', fontSize: '13px', color: '#64748b', textAlign: 'center' }}>
-          Blue states are where you've traveled!
+          {user 
+            ? "Blue states are where you've traveled!" 
+            : "Blue states have travel stories from our community!"}
         </p>
       </div>
 
-      {/* Travel Stories List - Only user's own stories */}
+      {/* Travel Stories List */}
       <h2 style={{ fontSize: '20px', marginBottom: '16px', color: '#1e293b' }}>
-        My Travel Stories
+        Travel Stories
+        {!user && (
+          <span style={{ fontSize: '14px', color: '#64748b', marginLeft: '12px' }}>
+            <Link to="/signin">Sign in</Link> to add your own stories!
+          </span>
+        )}
       </h2>
 
       {travels.length === 0 ? (
         <div className="empty-state">
-          <p>You haven't added any travel stories yet!</p>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary">
-            Save Your First Travel Story
-          </button>
+          <p>No travel stories yet!</p>
+          {user ? (
+            <button onClick={() => setShowForm(true)} className="btn btn-primary">
+              Save Your First Travel Story
+            </button>
+          ) : (
+            <p>Sign in to save your travel adventures!</p>
+          )}
         </div>
       ) : (
         <div className="products-grid">
@@ -231,21 +247,32 @@ function Travels({ user }: TravelsProps) {
               <p><strong>Dates:</strong> {formatDate(travel.date_started)} - {formatDate(travel.date_ended)}</p>
               {travel.notes && <p><strong>Notes:</strong> {travel.notes}</p>}
               
-              {/* Show Edit/Delete buttons since these are all user's own entries */}
-              <div className="product-actions">
-                <button 
-                  onClick={() => setEditingTravel(travel)} 
-                  className="btn btn-secondary btn-small"
-                >
-                  Edit
-                </button>
-                <button 
-                  onClick={() => handleDelete(travel.id)} 
-                  className="btn btn-danger btn-small"
-                >
-                  Delete
-                </button>
-              </div>
+              {/* Only show Edit/Delete buttons if user owns this entry */}
+              {user && user.id === travel.user_id && (
+                <div className="product-actions">
+                  <button 
+                    onClick={() => setEditingTravel(travel)} 
+                    className="btn btn-secondary btn-small"
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(travel.id)} 
+                    className="btn btn-danger btn-small"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+              
+              {/* Show that someone else posted this */}
+              {!user && travel.user_id && (
+                <div className="product-actions">
+                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    ✨ Shared by a fellow traveler
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
