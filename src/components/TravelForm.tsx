@@ -134,11 +134,11 @@ function TravelForm({ travel, onSave, onCancel }: TravelFormProps) {
             onChange={(e) => setRating(e.target.value)}
           >
             <option value="">Select rating</option>
-            <option value="1">⭐ - Poor</option>
-            <option value="2">⭐⭐ - Fair</option>
-            <option value="3">⭐⭐⭐ - Good</option>
-            <option value="4">⭐⭐⭐⭐ - Very Good</option>
-            <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
+            <option value="1">⭐</option>
+            <option value="2">⭐⭐</option>
+            <option value="3">⭐⭐⭐</option>
+            <option value="4">⭐⭐⭐⭐</option>
+            <option value="5">⭐⭐⭐⭐⭐</option>
           </select>
         </div>
 
@@ -171,7 +171,7 @@ function TravelForm({ travel, onSave, onCancel }: TravelFormProps) {
             rows={4}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Share your memories, tips, or highlights from this trip..."
+            placeholder="Save your memories, tips, or highlights from this trip..."
           />
         </div>
 

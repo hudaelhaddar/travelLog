@@ -15,7 +15,7 @@ function Navbar({ user }: NavbarProps) {
     <nav className="navbar">
       <div className="nav-brand">
         {/* TODO: Replace with your app name - Module 5 pattern */}
-        <Link to="/">🗺️ 50 States Explorer</Link>
+        <Link to="/">TravelLog</Link>
       </div>
       <div className="nav-links">
         <Link to="/">Home</Link>
